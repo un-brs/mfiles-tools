@@ -1,0 +1,12 @@
+Django==1.7.1
+django-mssql==1.6.2
+django-sqlserver==1.7
+pymssql==2.1.1
+python-tds==1.7.3.1
+six==1.8.0
+
+#bpython==0.13
+#django-braces==1.4.0
+#django-model-utils==2.0.3
+#logutils==0.3.3
+#South==0.8.4
