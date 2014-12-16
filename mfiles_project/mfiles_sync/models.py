@@ -5,10 +5,11 @@ from django.db import models
 
 
 class Vault(models.Model):
-    guid = models.CharField(unique=True, max_length=32)
     name = models.CharField(unique=True, max_length=64)
+    guid = models.CharField(unique=True, max_length=38, blank=True)
+    is_enabled = models.BooleanField("enabled?", default=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     class Meta:
@@ -18,13 +19,32 @@ class Vault(models.Model):
 class View(models.Model):
     name = models.CharField(max_length=128)
     vault = models.ForeignKey(Vault)
-    condition = models.CharField(max_length=512)
+    condition = models.TextField()
+    is_enabled = models.BooleanField("enabled?", default=True)
 
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return "%s, vault=%s" % (
+            self.name, str(self.vault))
 
     class Meta:
         db_table = 'mfmeta_view'
+
+
+class ViewSync(models.Model):
+    view = models.ForeignKey(View)
+    date_sync_start = models.DateTimeField()
+    date_sync_end = models.DateTimeField()
+    status = models.IntegerField(blank=True)
+
+    def __unicode__(self):
+        return ("ViewSync<view=%s, start=%s, end=%s, status=%d>" %
+                (str(self.view),
+                 str(self.date_sync_start),
+                 str(self.date_sync_end))
+                )
+
+    class Meta:
+        db_table = 'mfmeta_viewsync'
 
 
 class PropertyDef(models.Model):

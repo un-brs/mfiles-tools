@@ -3,6 +3,8 @@
 
 # Virtual env
 venv
+wenv
+.ipynb_checkpoints
 
 # Private configiration
 private.py

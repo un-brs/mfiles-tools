@@ -178,8 +178,7 @@ DJANGO_APPS = (
     # 'django.contrib.humanize',
 
     # Admin panel and documentation:
-    'django.contrib.admin',
-    # 'django.contrib.admindocs',
+    'django.contrib.admin'
 )
 
 # Apps specific for this project go here.
