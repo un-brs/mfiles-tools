@@ -2,6 +2,7 @@
 
 # Import the basic Django ORM models library
 from django.db import models
+from django.utils import dateparse
 
 
 class Vault(models.Model):
@@ -48,9 +49,48 @@ class ViewSync(models.Model):
 
 
 class PropertyDef(models.Model):
-    mfiles_id = models.IntegerField()
+    mfiles_id = models.IntegerField(db_index=True)
     name = models.CharField(max_length=128)
     vault = models.ForeignKey(Vault)
+
+    MFDatatypeText = 1
+    MFDatatypeInteger = 2
+    MFDatatypeFloating = 3
+    MFDatatypeDate = 5
+    MFDatatypeTime = 6
+    MFDatatypeTimestamp = 7
+    MFDatatypeBoolean = 8
+    MFDatatypeLookup = 9
+    MFDatatypeMultiSelectLookup = 10
+    MFDatatypeInteger64 = 11
+    MFDatatypeFILETIME = 12
+    MFDatatypeMultiLineText = 13
+    MFDatatypeACL = 14
+
+    TextTypes = (MFDatatypeText, MFDatatypeLookup, MFDatatypeMultiSelectLookup,
+                 MFDatatypeMultiLineText, MFDatatypeACL)
+
+    IntegerTypes = (MFDatatypeInteger, MFDatatypeInteger64)
+    DateTimeTypes = (MFDatatypeDate, MFDatatypeTimestamp)
+
+    TYPE_CHOICES = (
+        (MFDatatypeText, 'Text'),
+        (MFDatatypeInteger, 'A 32-bit integer'),
+        (MFDatatypeFloating, 'A 32-bit integer'),
+        (MFDatatypeDate, 'Date'),
+        (MFDatatypeTime, 'Time'),
+        (MFDatatypeTimestamp, 'Timestamp'),
+        (MFDatatypeBoolean, 'Boolean'),
+        (MFDatatypeLookup, 'Lookup (from a value list)'),
+        (MFDatatypeMultiSelectLookup, 'Multiple selection from a value list'),
+        (MFDatatypeInteger64, 'A 64-bit integer. Not used in the properties.'),
+        (MFDatatypeFILETIME,
+         'FILETIME (a 64-bit integer). Not used in the properties.'),
+        (MFDatatypeMultiLineText, 'Multi-line text'),
+        (MFDatatypeACL, 'The access control list (ACL).'),
+    )
+
+    dtype = models.IntegerField(choices=TYPE_CHOICES)
 
     def __unicode__(self):
         return self.name
@@ -61,12 +101,12 @@ class PropertyDef(models.Model):
 
 
 class Property(models.Model):
-    mfiles_id = models.IntegerField(null=True)
+    mfiles_display_id = models.CharField(max_length=64, db_index=True, null=True)
     txt_value = models.TextField(blank=True)
     int_value = models.IntegerField(null=True)
     float_value = models.FloatField(null=True)
     bool_value = models.NullBooleanField(null=True)
-    dt_value = models.DateTimeField()
+    dt_value = models.DateTimeField(null=True)
 
     pdef = models.ForeignKey(PropertyDef)
 
@@ -76,12 +116,36 @@ class Property(models.Model):
     class Meta:
         db_table = 'mfmeta_prop'
 
+    def set_value(self, value):
+        if self.pdef.dtype in PropertyDef.TextTypes:
+            self.txt_value = value
+            return
+
+        if self.pdef.dtype in PropertyDef.IntegerTypes:
+            self.int_value = value
+            return
+
+        if self.pdef.dtype == PropertyDef.MFDatatypeBoolean:
+            self.bool_value = value
+            return
+
+        if self.pdef.dtype == PropertyDef.MFDatatypeFloating:
+            self.float_value = value
+            return
+
+        if self.pdef.dtype in PropertyDef.DateTimeTypes:
+            # print("=>>> ", value)
+            self.dt_value = value
+            return
+
+        self.txt_value = str(value)
+
 
 class Document(models.Model):
-    mfiles_id = models.IntegerField()
+    name = models.CharField(max_length=256)
+    mfiles_id = models.IntegerField(db_index=True)
     views = models.ManyToManyField(View, through='DocumentView')
     properties = models.ManyToManyField(Property, through='DocumentProperty')
-
     ext = models.CharField(max_length=8)
     size = models.IntegerField()
 

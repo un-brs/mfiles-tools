@@ -23,7 +23,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # DATABASE CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = LOCAL_DATABASES
+DATABASES = PRODUCTION_DATABASES
 # END DATABASE CONFIGURATION
 
 
