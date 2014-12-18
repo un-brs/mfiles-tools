@@ -4,6 +4,8 @@ django-sqlserver==1.7
 pymssql==2.1.1
 python-tds==1.7.3.1
 six==1.8.0
+globetrotter=0.1.0
+pycountry==1.10
 
 #bpython==0.13
 #django-braces==1.4.0

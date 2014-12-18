@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 import datetime
 import calendar
-import sys
-
 
 from mfiles_sync.models import (Vault, Document, DocumentView, PropertyDef,
                                 Property, DocumentProperty)
 
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 from win32com.client import gencache
 mfiles = gencache.EnsureModule(
@@ -42,7 +40,6 @@ class Command(BaseCommand):
 
     def process_valuelist(self, db_pdef, mfiles_valuelist):
         for mfiles_item in mfiles_valuelist:
-            print
             db_prop = Property(
                 mfiles_display_id=mfiles_item.DisplayID, pdef=db_pdef)
             db_prop.set_value(mfiles_item.Name)
@@ -65,11 +62,14 @@ class Command(BaseCommand):
             )
             db_pdef.save()
             if mfiles_pdef.ValueList:
-                self.process_valuelist(
-                    db_pdef=db_pdef,
-                    mfiles_valuelist=mfiles_vault.ValueListItemOperations.GetValueListItems(
+                mfiles_valuelist = (
+                    mfiles_vault.ValueListItemOperations.GetValueListItems(
                         mfiles_pdef.ValueList
                     )
+                )
+                self.process_valuelist(
+                    db_pdef=db_pdef,
+                    mfiles_valuelist=mfiles_valuelist
                 )
 
         return db_pdef
@@ -101,7 +101,6 @@ class Command(BaseCommand):
             mfiles_pdef = mfiles_vault.PropertyDefOperations.GetPropertyDef(
                 mfiles_prop.PropertyDef
             )
-            self.stdout.write(mfiles_pdef.Name)
             db_pdef = self.process_propertydef(
                 mfiles_pdef=mfiles_pdef,
                 mfiles_vault=mfiles_vault,
@@ -114,32 +113,6 @@ class Command(BaseCommand):
                 db_doc=db_doc
             )
 
-            # if pdef.ValueList:
-            #     lst = [item.Name for item in mfiles_vault.ValueListItemOperations.GetValueListItems(
-            #         mfiles_pdef.ValueList)]
-            #         self.stdout.write(", ".join(lst))
-            #     except Exception as e:
-            #         self.stdout.write(self.stdout.encoding)
-            # print(lst)
-            #         sys.exit(1)
-
-            # if pdef.Name not in properties:
-            #     prop = {"count": 0, "type": datatype_to_str[pdef.DataType]}
-            #     if pdef.ValueList:
-            #         prop["values"] = dict(
-            #             [(item.Name, 0) for item in vault.ValueListItemOperations.GetValueListItems(pdef.ValueList)])
-            #     properties[pdef.Name] = prop
-            # else:
-            #     prop = properties[pdef.Name]
-
-            # if p.GetValueAsUnlocalizedText():
-            #     prop["count"] += 1
-            #     if pdef.ValueList:
-            #         for lookup in p.Value.GetValueAsLookups():
-            #             if lookup.DisplayValue not in prop["values"]:
-            #                 prop["values"][lookup.DisplayValue] = 0
-            #             prop["values"][lookup.DisplayValue] += 1
-
     def process_object_version(self, mfiles_vault, object_version, db_view,
                                db_vault):
         if object_version.FilesCount != 1:
@@ -148,16 +121,20 @@ class Command(BaseCommand):
             )
             return
 
-        db_doc = Document(mfiles_id=object_version.ObjVer.ID)
         file = object_version.Files.Item(1)
-
-        db_doc.name = file.Title
-        db_doc.ext = file.Extension
-        db_doc.size = file.LogicalSize
-
-        db_doc.created = object_version.CreatedUtc
-        db_doc.modified = object_version.LastModifiedUtc
+        db_doc = Document(
+            mfiles_id=object_version.ObjVer.ID,
+            vault=db_vault,
+            name=file.Title,
+            ext=file.Extension,
+            size=file.LogicalSize,
+            created=object_version.CreatedUtc,
+            modified=object_version.LastModifiedUtc
+        )
         db_doc.save()
+        self.stdout.write("Process document '%s.%s'" %
+            (db_doc.name, db_doc.ext)
+        )
 
         db_docview = DocumentView(doc=db_doc, view=db_view)
         db_docview.save()
@@ -200,7 +177,9 @@ class Command(BaseCommand):
         )
         # value.SetValue(mfiles.constants.MFDatatypeDate, '15/12/2014')
         search.Set(
-            expression, mfiles.constants.MFConditionTypeGreaterThanOrEqual, value
+            expression,
+            mfiles.constants.MFConditionTypeGreaterThanOrEqual,
+            value
         )
         conditions.Add(-1, search)
         # ======================================================================
@@ -232,11 +211,14 @@ class Command(BaseCommand):
                 mfiles.constants.MFDatatypeDate, end.strftime('%d/%m/%Y')
             )
 
-            objs = mfiles_vault.ObjectSearchOperations.SearchForObjectsByConditionsEx(
-                conditions,
-                mfiles.constants.MFSearchFlagReturnLatestVisibleVersion,
-                False,
-                0
+            objs = (
+                mfiles_vault.ObjectSearchOperations.
+                SearchForObjectsByConditionsEx(
+                    conditions,
+                    mfiles.constants.MFSearchFlagReturnLatestVisibleVersion,
+                    False,
+                    0
+                )
             )
 
             for object_version in objs:

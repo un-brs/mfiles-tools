@@ -7,7 +7,7 @@ from django.utils import dateparse
 
 class Vault(models.Model):
     name = models.CharField(unique=True, max_length=64)
-    guid = models.CharField(unique=True, max_length=38, blank=True)
+    guid = models.CharField(max_length=38, blank=True)
     is_enabled = models.BooleanField("enabled?", default=True)
 
     def __str__(self):
@@ -18,8 +18,8 @@ class Vault(models.Model):
 
 
 class View(models.Model):
-    name = models.CharField(max_length=128)
     vault = models.ForeignKey(Vault)
+    name = models.CharField(max_length=128)
     condition = models.TextField()
     is_enabled = models.BooleanField("enabled?", default=True)
 
@@ -49,9 +49,9 @@ class ViewSync(models.Model):
 
 
 class PropertyDef(models.Model):
+    vault = models.ForeignKey(Vault)
     mfiles_id = models.IntegerField(db_index=True)
     name = models.CharField(max_length=128)
-    vault = models.ForeignKey(Vault)
 
     MFDatatypeText = 1
     MFDatatypeInteger = 2
@@ -101,14 +101,14 @@ class PropertyDef(models.Model):
 
 
 class Property(models.Model):
-    mfiles_display_id = models.CharField(max_length=64, db_index=True, null=True)
+    pdef = models.ForeignKey(PropertyDef)
+    mfiles_display_id = models.CharField(
+        max_length=64, db_index=True, null=True)
     txt_value = models.TextField(blank=True)
     int_value = models.IntegerField(null=True)
     float_value = models.FloatField(null=True)
     bool_value = models.NullBooleanField(null=True)
     dt_value = models.DateTimeField(null=True)
-
-    pdef = models.ForeignKey(PropertyDef)
 
     def __unicode__(self):
         return "%s:%s" % (self.value, self.pdef.name)
@@ -140,17 +140,51 @@ class Property(models.Model):
 
         self.txt_value = str(value)
 
+    def value(self):
+        if self.pdef.dtype in PropertyDef.TextTypes:
+            return self.txt_value
+
+        if self.pdef.dtype in PropertyDef.IntegerTypes:
+            return self.int_value
+
+        if self.pdef.dtype == PropertyDef.MFDatatypeBoolean:
+            return self.bool_value
+
+        if self.pdef.dtype == PropertyDef.MFDatatypeFloating:
+            return self.float_value
+        if self.pdef.dtype in PropertyDef.DateTimeTypes:
+            return self.dt_value
+
+        return self.txt_value if self.txt_value else None
+
 
 class Document(models.Model):
-    name = models.CharField(max_length=256)
-    mfiles_id = models.IntegerField(db_index=True)
+    vault = models.ForeignKey(Vault)
     views = models.ManyToManyField(View, through='DocumentView')
     properties = models.ManyToManyField(Property, through='DocumentProperty')
+
+    mfiles_id = models.IntegerField(db_index=True)
+    name = models.CharField(max_length=256)
     ext = models.CharField(max_length=8)
     size = models.IntegerField()
 
     created = models.DateTimeField()
     modified = models.DateTimeField()
+
+    def property(self, name, as_list=False):
+        qresult = list(
+            self.properties.filter(pdef__name=name)
+        )
+
+        if qresult and (qresult[0].pdef.dtype ==
+                        PropertyDef.MFDatatypeMultiSelectLookup):
+            as_list = True
+
+        result = [p.value() for p in qresult]
+        if as_list:
+            return result
+        else:
+            return result[0] if result else None
 
     def __unicode__(self):
         return self.name + (".%s" % self.ext if self.ext else "")

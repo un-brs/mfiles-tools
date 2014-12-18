@@ -5,46 +5,44 @@ from django.db import models
 
 
 class Document(models.Model):
-    internal_id = models.IntegerField()
+    mfiles_id = models.IntegerField()
     vault = models.CharField(max_length=64)
-    un_number = models.CharField(max_length=64, blank=True)
+    un_number = models.CharField(max_length=128, blank=True)
     date_publication = models.DateTimeField()
     date_last_update = models.DateTimeField()
-    period_start = models.DateTimeField()
-    period_end = models.DateTimeField()
+    period_start = models.DateTimeField(null=True)
+    period_end = models.DateTimeField(null=True)
     copyright = models.CharField(max_length=256, blank=True)
     author = models.CharField(max_length=256, blank=True)
     meeting = models.CharField(max_length=256, blank=True)
-    programmes = models.CharField(max_length=256, blank=True)
     country = models.CharField(max_length=64, blank=True)
 
-    def __unicode__(self):
-        return ("Document<internal_id=%d, un_number=%s>" %
-                (self.internal_id, self.un_number))
+    def __str__(self):
+        return ("Document<mfiles_id=%d, un_number=%s>" %
+                (self.mfiles_id, self.un_number))
 
     class Meta:
         db_table = 'mfdoc_doc'
-        unique_together = ("internal_id", "vault")
+        unique_together = ("mfiles_id", "vault")
 
 
 class DocType(models.Model):
     doc = models.ForeignKey(Document)
-    value = models.CharField(max_length=128)
+    value = models.TextField()
 
-    def __unicode__(self):
+    def __str__(self):
         return ("DocType<doc=%d, value=%s>" %
                 (self.doc, self.value))
 
     class Meta:
         db_table = 'mfdoc_doctype'
-        unique_together = ("doc", "value")
 
 
 class Chemical(models.Model):
     doc = models.ForeignKey(Document)
-    value = models.CharField(max_length=256)
+    value = models.CharField(max_length=512)
 
-    def __unicode__(self):
+    def __str__(self):
         return ("Chemical<doc=%d, value=%s>" %
                 (self.doc, self.value))
 
@@ -55,9 +53,9 @@ class Chemical(models.Model):
 
 class Term(models.Model):
     doc = models.ForeignKey(Document)
-    value = models.CharField(max_length=256)
+    value = models.CharField(max_length=512)
 
-    def __unicode__(self):
+    def __str__(self):
         return ("Term<doc=%d, value=%s>" %
                 (self.doc, self.value))
 
@@ -66,12 +64,24 @@ class Term(models.Model):
         unique_together = ("doc", "value")
 
 
+class Program(models.Model):
+    doc = models.ForeignKey(Document)
+    value = models.TextField()
+
+    def __str__(self):
+        return ("Program<doc=%d, value=%s>" %
+                (self.doc, self.value))
+
+    class Meta:
+        db_table = 'mfdoc_program'
+
+
 class Title(models.Model):
     doc = models.ForeignKey(Document)
     lang = models.CharField(max_length=8)
-    value = models.CharField(max_length=256)
+    value = models.CharField(max_length=512)
 
-    def __unicode__(self):
+    def __str__(self):
         return ("Title<doc=%d, lang=%s, value=%s>" %
                 (self.doc, self.lang, self.value))
 
@@ -83,12 +93,24 @@ class Title(models.Model):
 class Description(models.Model):
     doc = models.ForeignKey(Document)
     lang = models.CharField(max_length=8)
-    value = models.CharField(max_length=256)
+    value = models.TextField()
 
-    def __unicode__(self):
+    def __str__(self):
         return ("Description<doc=%d, lang=%s, value=%s>" %
                 (self.doc, self.lang, self.value))
 
     class Meta:
         db_table = 'mfdoc_desc'
         unique_together = ("doc", "lang")
+
+
+class File(models.Model):
+    doc = models.ForeignKey(Document)
+    lang = models.CharField(max_length=8)
+    name = models.CharField(max_length=255)
+    ext = models.CharField(max_length=8)
+    size = models.IntegerField()
+
+    class Meta:
+        db_table = 'mfdoc_file'
+        unique_together = ("doc", "lang", "name", "ext")
